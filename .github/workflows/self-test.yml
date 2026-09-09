@@ -17,16 +17,17 @@ jobs:
 
       - uses: ./actions/setup-cross-tools
 
-      # rust 工具链 + 三平台 rust-std(自测需要;真实调用方 repsy-publish 自带)
-      - uses: dtolnay/rust-toolchain@stable
+      # rust 工具链 + 三平台 rust-std(自测需要;真实调用方 repsy-publish 自带)。
+      # 暂用第三方 dtolnay 直接引用(用户拍板):后续统一收口到自建 setup-rust。
+      - uses: dtolnay/rust-toolchain@v1
         with:
           targets: aarch64-apple-darwin,x86_64-apple-darwin,x86_64-pc-windows-msvc
 
       - name: 版本自检
         run: |
           zig version                                # 期望 0.15.2
-          cargo zigbuild --version
-          cargo xwin --version
+          cargo zigbuild --help >/dev/null && echo "cargo-zigbuild OK"
+          cargo xwin --help   >/dev/null && echo "cargo-xwin OK"
 
       - name: 交叉编译三平台并断言产物
         run: |
