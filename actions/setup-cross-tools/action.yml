@@ -62,9 +62,10 @@ runs:
         # 从社区镜像 zig.linus.dev 下载(zig 官方推荐 CI 用镜像,官网单机托管无带宽
         # 保证,腾讯云实测 KB 级;镜像 200 实测)。文件完整性由 sha256(取自官方
         # index.json)保证,镜像内容不对比官方源直接 fail,不因镜像降低信任要求。
-        # 解压后顶层目录 zig-x86_64-linux-<ver>/,二进制在其根。
+        # 布局:解压顶层目录 zig-x86_64-linux-<ver>/ 直接 mv 成 zig-<ver>/,
+        # 二进制就在 zig-<ver>/ 根(实测落盘)。
         zig_dir="$root/zig-$zig_ver"
-        if [ ! -x "$zig_dir/zig-x86_64-linux-$zig_ver/zig" ]; then
+        if [ ! -x "$zig_dir/zig" ]; then
           echo "安装 zig $zig_ver"
           rm -rf "$zig_dir"
           fetch "https://zig.linus.dev/zig/$zig_ver/zig-x86_64-linux-$zig_ver.tar.xz" \
@@ -75,7 +76,7 @@ runs:
         else
           echo "zig $zig_ver 缓存命中"
         fi
-        echo "$zig_dir/zig-x86_64-linux-$zig_ver" >> "$GITHUB_PATH"
+        echo "$zig_dir" >> "$GITHUB_PATH"
 
         # ── cargo-zigbuild ─────────────────────────────────────────────────
         # rust-cross release 预编译 musl 二进制,包内顶层目录与二进制同名。
