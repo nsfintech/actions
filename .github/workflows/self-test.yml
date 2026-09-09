@@ -1,0 +1,46 @@
+# 自测:push/PR 到 main 时在本仓库验证 setup-cross-tools 真实可用——
+# 装上工具链后交叉编译一个 hello-world,断言三平台产物格式正确。
+# 跑在 self-hosted linux(发布实际跑的环境,测它才有意义;单台串行,自测与发布同队列错峰)。
+name: self-test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  setup-cross-tools:
+    runs-on: [self-hosted, linux]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./actions/setup-cross-tools
+
+      # rust 工具链 + 三平台 rust-std(自测需要;真实调用方 repsy-publish 自带)
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin,x86_64-pc-windows-msvc
+
+      - name: 版本自检
+        run: |
+          zig version                                # 期望 0.15.2
+          cargo zigbuild --version
+          cargo xwin --version
+
+      - name: 交叉编译三平台并断言产物
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          cargo new xtest --lib -q
+          cd xtest
+          # darwin arm64/x64 走 zig,windows msvc 走 xwin
+          cargo zigbuild --release --target aarch64-apple-darwin
+          cargo zigbuild --release --target x86_64-apple-darwin
+          cargo xwin build --release --target x86_64-pc-windows-msvc
+          file target/*/release/libxtest.* | tee /tmp/self-test-file.txt
+          grep -q "Mach-O 64-bit dynamically shared lib arm64"  /tmp/self-test-file.txt
+          grep -q "Mach-O 64-bit dynamically shared lib x86_64" /tmp/self-test-file.txt
+          grep -q "PE32+ executable (DLL)"                     /tmp/self-test-file.txt
+
+# 说明:本仓库自己的发版走 release.yml(release-please + v1 前移),与 .github 仓库同模式。
