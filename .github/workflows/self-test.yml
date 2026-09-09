@@ -25,6 +25,9 @@ jobs:
         with:
           toolchain: stable
           targets: aarch64-apple-darwin,x86_64-apple-darwin,x86_64-pc-windows-msvc
+          # llvm-tools 提供 lld-link(rust-lld)/llvm-ar:cdylib 链接 DLL 必需,
+          # cargo-xwin 的 symlink_llvm_tool 自动取 rustup 组件里的
+          components: llvm-tools
 
       - name: 版本自检
         run: |
@@ -38,6 +41,8 @@ jobs:
           cd "$RUNNER_TEMP"
           cargo new xtest --lib -q
           cd xtest
+          # cdylib 才走链接器(rlib 不链接),真正验证 zig/xwin 链出目标平台格式
+          printf '\n[lib]\ncrate-type = ["cdylib"]\n' >> Cargo.toml
           # darwin arm64/x64 走 zig,windows msvc 走 xwin
           cargo zigbuild --release --target aarch64-apple-darwin
           cargo zigbuild --release --target x86_64-apple-darwin
