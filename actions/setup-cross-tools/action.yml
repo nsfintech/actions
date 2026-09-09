@@ -55,15 +55,19 @@ runs:
             echo "::error::sha256 校验失败 $file: want=$want got=$got"
             exit 1
           fi
+          echo "  下载完成: $(basename "$file") $(du -h "$file" | cut -f1)"
         }
 
         # ── zig ────────────────────────────────────────────────────────────
-        # 官方 tarball,解压后顶层目录 zig-x86_64-linux-<ver>/,二进制在其根。
+        # 从社区镜像 zig.linus.dev 下载(zig 官方推荐 CI 用镜像,官网单机托管无带宽
+        # 保证,腾讯云实测 KB 级;镜像 200 实测)。文件完整性由 sha256(取自官方
+        # index.json)保证,镜像内容不对比官方源直接 fail,不因镜像降低信任要求。
+        # 解压后顶层目录 zig-x86_64-linux-<ver>/,二进制在其根。
         zig_dir="$root/zig-$zig_ver"
         if [ ! -x "$zig_dir/zig-x86_64-linux-$zig_ver/zig" ]; then
           echo "安装 zig $zig_ver"
           rm -rf "$zig_dir"
-          fetch "https://ziglang.org/download/$zig_ver/zig-x86_64-linux-$zig_ver.tar.xz" \
+          fetch "https://zig.linus.dev/zig/$zig_ver/zig-x86_64-linux-$zig_ver.tar.xz" \
                 "02aa270f183da276e5b5920b1dac44a63f1a49e55050ebde3aecc9eb82f93239" \
                 "$RUNNER_TEMP/zig.tar.xz"
           tar -xJf "$RUNNER_TEMP/zig.tar.xz" -C "$root"

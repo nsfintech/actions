@@ -35,7 +35,7 @@ main → 开 release PR → 合并自动打 `vX.Y.Z` tag → update-major-tag �
 
 | 工具 | 版本(默认) | 来源 | 锁版本原因 |
 |---|---|---|---|
-| zig | 0.15.2 | ziglang.org 官方 tarball | 0.16.x darwin 链接 bug(exported symbols list 误读,实测 FileNotFound) |
+| zig | 0.15.2 | `zig.linus.dev`(社区镜像,zig 官方推荐 CI 用镜像;官网单机托管无带宽保证,腾讯云实测 KB 级) | 0.16.x darwin 链接 bug(exported symbols list 误读,实测 FileNotFound);完整性由 sha256(取自官方 index.json)保证 |
 | cargo-zigbuild | 0.23.4 | rust-cross GitHub release | — |
 | cargo-xwin | 0.23.1 | rust-cross GitHub release | — |
 
