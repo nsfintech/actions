@@ -112,6 +112,8 @@ runs:
         else
           echo "cargo-xwin $xwin_ver 缓存命中"
         fi
+        echo "$xwin_dir" >> "$GITHUB_PATH"
+
         # ── Windows SDK 预下载(cargo-xwin 共享缓存) ──────────────────────
         # XWIN_CACHE_DIR 是 cargo-xwin 顶层缓存目录,SDK 实际落在 <top>/xwin/,
         # DONE 标记文件命中即跳过下载(0.23.1 源码 setup_msvc_crt 验证)。
