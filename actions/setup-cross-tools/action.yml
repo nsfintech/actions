@@ -48,7 +48,9 @@ runs:
 
         fetch() { # fetch <url> <sha256> <file>
           local url="$1" want="$2" file="$3"
-          curl -fsSL --retry 3 -o "$file" "$url"
+          # 不用 -s:保留 curl 默认进度表(百分比/已下载/速度),CI 日志里
+          # 能看出下载在走还是卡死(每次重绘在 Actions 日志里成可见行)
+          curl -fL --retry 3 -o "$file" "$url"
           local got
           got="$(sha256sum "$file" | cut -d' ' -f1)"
           if [ "$got" != "$want" ]; then
