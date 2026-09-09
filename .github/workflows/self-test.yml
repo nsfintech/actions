@@ -17,27 +17,23 @@ jobs:
 
       - uses: ./actions/setup-cross-tools
 
-      # rust 工具链 + 三平台 rust-std(自测需要;真实调用方 repsy-publish 自带)
-      - uses: dtolnay/rust-toolchain@stable
+      # rust 工具链 + 三平台 rust-std(自测需要;真实调用方 repsy-publish 自带)。
+      # 暂用第三方 dtolnay 直接引用(用户拍板):后续统一收口到自建 setup-rust。
+      # 注意 @v1 的 toolchain 是 required 无默认值(只有 @stable/@master 分支版才注入
+      # 默认 stable),必须显式传,否则 'toolchain' is a required input 硬失败。
+      - uses: dtolnay/rust-toolchain@v1
         with:
+          toolchain: stable
           targets: aarch64-apple-darwin,x86_64-apple-darwin,x86_64-pc-windows-msvc
-
-      - name: 调试落盘与 PATH
-        run: |
-          echo "── PATH 逐行:"
-          echo "$PATH" | tr ':' '\n' | grep -n . || true
-          echo "── cross-tools 目录树(maxdepth 3):"
-          find "$RUNNER_TOOL_CACHE/cross-tools" -maxdepth 3 | sort || true
-          echo "── zig 二进制查找:"
-          find "$RUNNER_TOOL_CACHE/cross-tools" -name zig -type f || true
-          echo "── command -v:"
-          command -v zig || echo "zig 不在 PATH"
+          # llvm-tools 提供 lld-link(rust-lld)/llvm-ar:cdylib 链接 DLL 必需,
+          # cargo-xwin 的 symlink_llvm_tool 自动取 rustup 组件里的
+          components: llvm-tools
 
       - name: 版本自检
         run: |
           zig version                                # 期望 0.15.2
-          cargo zigbuild --version
-          cargo xwin --version
+          cargo zigbuild --help >/dev/null && echo "cargo-zigbuild OK"
+          cargo xwin --help   >/dev/null && echo "cargo-xwin OK"
 
       - name: 交叉编译三平台并断言产物
         run: |
@@ -45,13 +41,18 @@ jobs:
           cd "$RUNNER_TEMP"
           cargo new xtest --lib -q
           cd xtest
+          # cdylib 才走链接器(rlib 不链接),真正验证 zig/xwin 链出目标平台格式
+          printf '\n[lib]\ncrate-type = ["cdylib"]\n' >> Cargo.toml
           # darwin arm64/x64 走 zig,windows msvc 走 xwin
           cargo zigbuild --release --target aarch64-apple-darwin
           cargo zigbuild --release --target x86_64-apple-darwin
           cargo xwin build --release --target x86_64-pc-windows-msvc
-          file target/*/release/libxtest.* | tee /tmp/self-test-file.txt
-          grep -q "Mach-O 64-bit dynamically shared lib arm64"  /tmp/self-test-file.txt
-          grep -q "Mach-O 64-bit dynamically shared lib x86_64" /tmp/self-test-file.txt
-          grep -q "PE32+ executable (DLL)"                     /tmp/self-test-file.txt
+          # 产物名:darwin 为 libxtest.dylib,windows 为 xtest.dll(无 lib 前缀);
+          # file 新版描述为 dynamically linked shared library(带 flags 尾巴)
+          ls target/*/release/*.dll target/*/release/*.dylib
+          file target/*/release/*.dll target/*/release/*.dylib | tee /tmp/self-test-file.txt
+          grep -q "Mach-O 64-bit arm64 dynamically linked shared library"  /tmp/self-test-file.txt
+          grep -q "Mach-O 64-bit x86_64 dynamically linked shared library" /tmp/self-test-file.txt
+          grep -q "PE32+ executable (DLL) (GUI) x86-64"                   /tmp/self-test-file.txt
 
 # 说明:本仓库自己的发版走 release.yml(release-please + v1 前移),与 .github 仓库同模式。

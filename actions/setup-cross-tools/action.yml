@@ -14,8 +14,10 @@ description: |
   - 仅支持 x86_64 linux runner(组织 self-hosted runner 形态);加架构时补
     asset 名映射即可
 
-  xwin 的 Windows SDK(~1.1GB)不在本 action 范围:首次 windows 构建时由
-  cargo-xwin 自动下载到 ~/.cache/cargo-xwin/,DONE 标记持久跳过,天然自缓存。
+  xwin 的 Windows SDK(~1.1GB)首次由本 action 预下载(cargo-xwin cache xwin)
+  到 $RUNNER_TOOL_CACHE/cross-tools/xwin-home/xwin/,DONE 标记持久跳过;后续
+  构建零下载直接进编译。注意 cargo-xwin 的下载器在 CI 非交互环境下无进度
+  输出(已知问题 rust-cross/cargo-xwin#127),首下耐心等 10-15 分钟即可。
 
 inputs:
   zig-version:
@@ -48,7 +50,9 @@ runs:
 
         fetch() { # fetch <url> <sha256> <file>
           local url="$1" want="$2" file="$3"
-          curl -fsSL --retry 3 -o "$file" "$url"
+          # 不用 -s:保留 curl 默认进度表(百分比/已下载/速度),CI 日志里
+          # 能看出下载在走还是卡死(每次重绘在 Actions 日志里成可见行)
+          curl -fL --retry 3 -o "$file" "$url"
           local got
           got="$(sha256sum "$file" | cut -d' ' -f1)"
           if [ "$got" != "$want" ]; then
@@ -62,9 +66,10 @@ runs:
         # 从社区镜像 zig.linus.dev 下载(zig 官方推荐 CI 用镜像,官网单机托管无带宽
         # 保证,腾讯云实测 KB 级;镜像 200 实测)。文件完整性由 sha256(取自官方
         # index.json)保证,镜像内容不对比官方源直接 fail,不因镜像降低信任要求。
-        # 解压后顶层目录 zig-x86_64-linux-<ver>/,二进制在其根。
+        # 布局:解压顶层目录 zig-x86_64-linux-<ver>/ 直接 mv 成 zig-<ver>/,
+        # 二进制就在 zig-<ver>/ 根(实测落盘)。
         zig_dir="$root/zig-$zig_ver"
-        if [ ! -x "$zig_dir/zig-x86_64-linux-$zig_ver/zig" ]; then
+        if [ ! -x "$zig_dir/zig" ]; then
           echo "安装 zig $zig_ver"
           rm -rf "$zig_dir"
           fetch "https://zig.linus.dev/zig/$zig_ver/zig-x86_64-linux-$zig_ver.tar.xz" \
@@ -75,7 +80,7 @@ runs:
         else
           echo "zig $zig_ver 缓存命中"
         fi
-        echo "$zig_dir/zig-x86_64-linux-$zig_ver" >> "$GITHUB_PATH"
+        echo "$zig_dir" >> "$GITHUB_PATH"
 
         # ── cargo-zigbuild ─────────────────────────────────────────────────
         # rust-cross release 预编译 musl 二进制,包内顶层目录与二进制同名。
@@ -108,3 +113,16 @@ runs:
           echo "cargo-xwin $xwin_ver 缓存命中"
         fi
         echo "$xwin_dir" >> "$GITHUB_PATH"
+
+        # ── Windows SDK 预下载(cargo-xwin 共享缓存) ──────────────────────
+        # XWIN_CACHE_DIR 是 cargo-xwin 顶层缓存目录,SDK 实际落在 <top>/xwin/,
+        # DONE 标记文件命中即跳过下载(0.23.1 源码 setup_msvc_crt 验证)。
+        # 写 GITHUB_ENV 让后续 build 步的 cargo-xwin 读同一份缓存。
+        export XWIN_CACHE_DIR="$root/xwin-home"
+        echo "XWIN_CACHE_DIR=$root/xwin-home" >> "$GITHUB_ENV"
+        if [ ! -f "$XWIN_CACHE_DIR/xwin/DONE" ]; then
+          echo "预下载 Windows SDK/CRT(~1.1GB,无进度输出,预计 10-15 分钟)"
+          "$xwin_dir/cargo-xwin" cache xwin
+        else
+          echo "Windows SDK/CRT 缓存命中"
+        fi
