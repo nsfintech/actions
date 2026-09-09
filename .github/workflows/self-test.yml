@@ -22,6 +22,17 @@ jobs:
         with:
           targets: aarch64-apple-darwin,x86_64-apple-darwin,x86_64-pc-windows-msvc
 
+      - name: 调试落盘与 PATH
+        run: |
+          echo "── PATH 逐行:"
+          echo "$PATH" | tr ':' '\n' | grep -n . || true
+          echo "── cross-tools 目录树(maxdepth 3):"
+          find "$RUNNER_TOOL_CACHE/cross-tools" -maxdepth 3 | sort || true
+          echo "── zig 二进制查找:"
+          find "$RUNNER_TOOL_CACHE/cross-tools" -name zig -type f || true
+          echo "── command -v:"
+          command -v zig || echo "zig 不在 PATH"
+
       - name: 版本自检
         run: |
           zig version                                # 期望 0.15.2
