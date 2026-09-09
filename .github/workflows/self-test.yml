@@ -47,9 +47,12 @@ jobs:
           cargo zigbuild --release --target aarch64-apple-darwin
           cargo zigbuild --release --target x86_64-apple-darwin
           cargo xwin build --release --target x86_64-pc-windows-msvc
-          file target/*/release/libxtest.* | tee /tmp/self-test-file.txt
-          grep -q "Mach-O 64-bit dynamically shared lib arm64"  /tmp/self-test-file.txt
-          grep -q "Mach-O 64-bit dynamically shared lib x86_64" /tmp/self-test-file.txt
-          grep -q "PE32+ executable (DLL)"                     /tmp/self-test-file.txt
+          # 产物名:darwin 为 libxtest.dylib,windows 为 xtest.dll(无 lib 前缀);
+          # file 新版描述为 dynamically linked shared library(带 flags 尾巴)
+          ls target/*/release/*.dll target/*/release/*.dylib
+          file target/*/release/*.dll target/*/release/*.dylib | tee /tmp/self-test-file.txt
+          grep -q "Mach-O 64-bit arm64 dynamically linked shared library"  /tmp/self-test-file.txt
+          grep -q "Mach-O 64-bit x86_64 dynamically linked shared library" /tmp/self-test-file.txt
+          grep -q "PE32+ executable (DLL) x86_64"                             /tmp/self-test-file.txt
 
 # 说明:本仓库自己的发版走 release.yml(release-please + v1 前移),与 .github 仓库同模式。
