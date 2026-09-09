@@ -19,8 +19,11 @@ jobs:
 
       # rust 工具链 + 三平台 rust-std(自测需要;真实调用方 repsy-publish 自带)。
       # 暂用第三方 dtolnay 直接引用(用户拍板):后续统一收口到自建 setup-rust。
+      # 注意 @v1 的 toolchain 是 required 无默认值(只有 @stable/@master 分支版才注入
+      # 默认 stable),必须显式传,否则 'toolchain' is a required input 硬失败。
       - uses: dtolnay/rust-toolchain@v1
         with:
+          toolchain: stable
           targets: aarch64-apple-darwin,x86_64-apple-darwin,x86_64-pc-windows-msvc
 
       - name: 版本自检
